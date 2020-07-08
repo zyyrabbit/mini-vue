@@ -1,9 +1,15 @@
 'use strict'
+// 匹配结束标签
 const EAD_TAG_REG = /^<\s*\/\s*([a-z-_]+)\s*>/i
+// 匹配开始标签
 const START_TAG_REG = /^<\s*([a-z-_]+)\s*([^>]*)>/i
+// 判断是否为自闭和标签
 const CLOSE_TAG_REG = /\/\s*$/
+// 匹配属性
 const ATTR_REG = /([\w:]+)\s*(=\s*"([^"]+)")?/ig
+// 判断是否为动态属性
 const EXPRESS = /^:/
+// 提取文本节点
 const TEXT_REG = /^[^<>]+/
 
 const TYPE = {
@@ -23,18 +29,25 @@ const TYPE = {
  * @returns
  */
 const tokenizer = (originInput) => {
-  // 字符串解析时的字符索引
+  // 存储解析的token
   const tokens = []
+  // 用于判断是否开、闭标签的栈
   const stack = []
-  // 清楚所有换行符
+  // 清除所有换行符，并复制输入的字符模板
   let input = originInput.replace(/\n|\r/g, '')
+  /**
+   * 通过不断其匹配标签、属性等，不断的去截取匹配后的字符串
+   * 当最总字符串长度为零，表示全部完成模板的解析
+   */
   while (input.length) {
+    // 清除首尾的空格
     input = input.trim()
     // 开始标签
     if (START_TAG_REG.test(input)) {
       const match = input.match(START_TAG_REG)
       if (match) {
         const [str, tagName, attrs] = match
+         // 截取剩余模板字符串
         input = input.slice(str.length)
         const attrsVal = []
         // 判断是否为自闭合标签
@@ -45,6 +58,7 @@ const tokenizer = (originInput) => {
           attrs.replace(CLOSE_TAG_REG, '')
           tokens.push({ type: TYPE.CLOSE, tag: tagName, attrs: attrsVal, })
         }
+        // 开始标签中，需要提取标签属性
         if (attrs) {
           let rst = ''
           while ((rst = ATTR_REG.exec(attrs)) !== null) {
@@ -54,6 +68,7 @@ const tokenizer = (originInput) => {
               attrsVal.push({ type: TYPE.EXPRESS, name: attrName.slice(1), value: attrValue, })
               continue
             }
+            // 普通属性
             attrsVal.push({ type: TYPE.ATTR, name: attrName, value: attrValue, })
           }
         }
@@ -71,13 +86,14 @@ const tokenizer = (originInput) => {
       }
       continue
     }
-    // 结束标签标签
+    // 结束标签
     if (EAD_TAG_REG.test(input)) {
       const match = input.match(EAD_TAG_REG)
       if (match) {
         const [str, tagName] = match
         input = input.slice(str.length)
         const startTagName = stack.pop()
+        // 判断是否和开始标签匹配
         if (startTagName !== tagName) {
           throw new Error(`标签不匹配: ${tagName}`)
         }
@@ -94,7 +110,7 @@ const tokenizer = (originInput) => {
 }
 
 /**
- * 语法解析生成 AST
+ * 语法解析生成 AST抽象语法树
  *
  * @export
  * @param {*} tokens
@@ -106,24 +122,35 @@ const parser = tokens => {
     children: []
   }
   const stack = [ast]
-  let current = 0,
-    token = null
-  while (current < tokens.length) {
+  let current = 0, // 当前tokenn索引
+      token = null,
+      len =  tokens.length
+
+  while (current < len) {
     token = tokens[current++]
     if (token.type === TYPE.START) {
+      // 这里简单复制token 并加入children属性
       const node = Object.assign({
         children: []
       }, token)
+      // 压入堆栈
       stack.push(node)
       continue
     }
+    /**
+     * 如果为结束标签的类型，则弹出栈当前节点 childNode
+     * 我们可知它的父节点为当前栈的头部节点
+     */
     if (token.type === TYPE.END) {
       const node = stack.pop()
+      // 获取弹出节点的父节点
       const parent = stack[stack.length - 1]
       parent.children.push(node)
       continue
     }
+    // 如果为自闭和节点 或者 文本节点，则直接放入父节点children 属性中
     if (token.type === TYPE.CLOSE || token.type === TYPE.TEXT) {
+      // 获取弹出节点的父节点
       const parent = stack[stack.length - 1]
       parent.children.push(token)
       continue
@@ -133,6 +160,11 @@ const parser = tokens => {
   return ast
 }
 
+/**
+ * 深度遍历AST语法树
+ * @param {*} ast 
+ * @param {*} visitor 
+ */
 const traverser = (ast, visitor) => {
   function traverseArray(array, parent) {
     array.forEach(child => {
@@ -141,6 +173,7 @@ const traverser = (ast, visitor) => {
   }
   function traverseNode(node, parent) {
     let methods = visitor[node.type]
+    // 调用对应节点，遍历节点钩子函数
     if (methods && methods.enter) {
       methods.enter(node, parent)
     }
@@ -179,34 +212,43 @@ const transformer = (ast) => {
   })
   return ast
 }
+// _c 函数为创建VNode的函数
+let _c = () => {}
 
+/**
+ * 转换后抽象语法树，生成转换后的代码
+ * @param {*} node 
+ */
 const codeGenerator = (node) => {
   switch (node.type) {
-    case TYPE.FRAGMENT:
-      // return node.children.map(codeGenerator).join('\n');
+    case TYPE.FRAGMENT: // 抽象语法的根节点
       return `return function () { return ${codeGenerator(node.children[0])} }`
     case TYPE.START:
+      // _c 函数为创建VNode的函数
       return (
         `_c('${node.tag}', 
           {${node.attrs.map(codeGenerator)}},
           [${node.children.map(codeGenerator)}]
         )`
        );
-    case TYPE.CLOSE:
+    case TYPE.CLOSE: // 自闭合标签
       return (`_c('${node.tag}', {${node.attrs.map(codeGenerator)}})`);
     case TYPE.TEXT:
       return (`_c('${TYPE.TEXT}', {value: '${node.value}'})`);
-    case TYPE.ATTR:
+    case TYPE.ATTR: // 属性
       return (`${node.name}: "${node.value}"`);
-    case TYPE.EXPRESS:
+    case TYPE.EXPRESS: // 表达式
       return (`${node.name}: this.${node.value}`);
     default:
       throw new TypeError(node.type);
   }
 }
 
-let _c = () => {}
 
+/**
+ * 编译模板，生成render 渲染函数
+ * @param {*} input 
+ */
 const compile = input => {
   let tokens = tokenizer(input)
   let ast    = parser(tokens)
@@ -215,7 +257,7 @@ const compile = input => {
   return new Function(code)()
 }
 
-// DOM 操作
+// 基本 DOM 操作
 const HostElement = {
   createElement: tag => document.createElement(tag),
   createTextNode: value => document.createTextNode(value),
@@ -236,7 +278,10 @@ const HostElement = {
   }
 }
 
-// reactivity 数据响应式
+/**
+ * reactivity 数据响应式相关代码
+ */
+ 
 const isObject = (val) => val !== null && typeof val === 'object'
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const hasOwn = (obj, key) => hasOwnProperty.call(obj, key)
@@ -250,17 +295,17 @@ let shouldTrack = true
 const trackStack = []
 // 依赖收集
 const effectStack = []
-
+// 暂停依赖收集
 const pauseTracking =  () => {
   trackStack.push(shouldTrack)
   shouldTrack = false
 }
-
+// 重置依赖收集
 const resetTracking =  () => {
   const last = trackStack.pop()
   shouldTrack = last === undefined ? true : last
 }
-
+// 清除依赖
 const cleanup = (effect) => {
   const { deps } = effect
   if (deps.length) {
@@ -313,7 +358,7 @@ const trigger = (target, key) => {
   }
   const effectsToAdd = depsMap.get(key)
   const effects = new Set()
-  // 必须这样复制，否则咋cleaup时候 会导致set forEach异常
+  // 必须这样复制，否则在cleanup的时候会导致set forEach异常
   effectsToAdd.forEach(effect => {
     effects.add(effect)
   })
@@ -378,31 +423,42 @@ const reactive = (obj, shallow = false) => {
   toProxy.set(obj, proxy)
   return proxy
 }
-
+// 浅响应式
 const shallowReactive = (obj) => {
   return reactive(obj, true)
 }
-
+// 当前渲染组件实例
 let currentRenderingInstance
-
+/**
+ * 将组件实例作为render函数的渲染上下文，生成组件VNode树
+ * @param {组件实例} instance 
+ */
 const renderComponentRoot = (instance) => {
+  // 这里proxy 属性，其实代理的正是instance实例自身的实例
   const proxyToUse = instance.proxy
   currentRenderingInstance = instance
   const subTree = instance.render.call(proxyToUse, proxyToUse)
   currentRenderingInstance = null
   return subTree
 }
-
+/**
+ * 更新组件之前，利用新的VNode节点，更新组件的props、attrs,做一些初始化操作
+ * @param {组件实例} instance 
+ * @param {组件新的VNode节点} nextVNode 
+ */
 const updateComponentPreRender = (instance, nextVNode) => {
   nextVNode.component = instance
   instance.vnode = nextVNode
   instance.next = null
   const { type, props, attrs } = instance
+  // 获取组件定义的props
   const optionsProps = type.props
+  // 获取元素的所有的props
   const rawProps = nextVNode.props
   if (rawProps) {
     for (const key in rawProps) {
       const value = rawProps[key]
+      // 判断是否为组件定义的Props
       if (hasOwn(optionsProps, key)) {
         props[key] = value
       } else {
@@ -411,25 +467,35 @@ const updateComponentPreRender = (instance, nextVNode) => {
     }
   }
 }
-
+/**
+ * 渲染组件子树，并进行依赖收集
+ * @param {*} instance 
+ * @param {*} initialVNode 
+ * @param {*} anchor 
+ * @param {*} container 
+ */
 const setupRenderEffect = (instance, initialVNode, anchor, container) => {
   instance.update = effect(function componentEffect() {
+    // 判断是否挂载
     if (!instance.isMounted) {
       const subTree = (instance.subTree = renderComponentRoot(instance))
+      // 根据组件子VNode 树，渲染组件
       patch(null, subTree, container, anchor, instance)
       initialVNode.el = subTree.el
       instance.isMounted = true
     } else {
       let { next, vnode } = instance
-       // 父组件更新
+       // next存在，表明更新是由父组件更新，触发子组件更新
       if (next) {
         updateComponentPreRender(instance, next)
       } else {
-        // 组件内部更新
+        // 组件内部数据变化引起的组件更新
         next = vnode
       }
+      // 渲染生成新的子树
       const nextTree = renderComponentRoot(instance)
       const prevTree = instance.subTree
+      // 更新引用
       instance.subTree = nextTree
       next.el = vnode.el
       patch(
@@ -445,7 +511,11 @@ const setupRenderEffect = (instance, initialVNode, anchor, container) => {
 }
 
 const EMPTY_OBJ = {}
-
+/**
+ * 根据组件Vnode 节点生成组件实例
+ * @param {*} vnode 
+ * @param {*} parent 
+ */
 const createComponentInstance = (vnode, parent) => {
   const appContext = (parent ? parent.appContext : vnode.appContext) || EMPTY_OBJ
   const instance = {
@@ -453,9 +523,9 @@ const createComponentInstance = (vnode, parent) => {
     parent,
     appContext,
     type: vnode.type,
-    root: null, // to be immediately set
-    subTree: null, // will be set synchronously right after creation
-    update: null, // will be set synchronously right after creation
+    root: null, 
+    subTree: null,
+    update: null,
     render: null,
     proxy: null,
     // state
@@ -465,28 +535,29 @@ const createComponentInstance = (vnode, parent) => {
     attrs: EMPTY_OBJ,
     setupState: EMPTY_OBJ,
     setupContext: null,
-    // per-instance asset storage (mutable during options resolution)
+    // 全局组件和指令的继承
     components: Object.create(appContext.components),
     directives: Object.create(appContext.directives),
-    emit: null// to be set immediately
+    emit: null
   }
+  // 这里ctx 属性，是为了渲染模板的时候，将instance自身作为上下文
   instance.ctx = { _: instance }
   return instance
 }
-
+// 跟新DOM Prop属性
 const hostPatchProp = (el, key, prevValue, nextValue, parentComponent) => {
   if (prevValue !== nextValue) {
     el.setAttribute(key, nextValue)
   }
 }
-
+// 挂载children
 const mountChildren = (children, container, anchor, parentComponent, start = 0) => {
   for (let i = start; i < children.length; i++) {
     const child = children[i]
     patch(null, child, container, anchor, parentComponent)
   }
 }
-
+// 挂载元素
 const mountElement = (vnode, container, anchor, parentComponent) => {
   const { type, props, children } = vnode
   let el
@@ -507,7 +578,7 @@ const mountElement = (vnode, container, anchor, parentComponent) => {
   // 插入DOM
   HostElement.appendChild(container, el, anchor)
 }
-
+// 更新组件Props
 const patchProps = (el, vnode, oldProps, newProps, parentComponent) => {
   if (oldProps !== newProps) {
     for (const key in newProps) {
@@ -526,7 +597,7 @@ const patchProps = (el, vnode, oldProps, newProps, parentComponent) => {
     }
   }
 }
-
+// 组件初次挂载时候，props初始化
 const initProps = (instance, rawProps) => {
   const props = {}
   const attrs = {}
@@ -546,7 +617,7 @@ const initProps = (instance, rawProps) => {
   instance.props = shallowReactive(props)
   instance.attrs = attrs
 }
-
+// 移除Dom元素
 const unmount = (vnode, parentComponent, doRemove = false) => {
   const {type, props, children} = vnode
   if (doRemove) {
@@ -561,7 +632,14 @@ const unmountChildren = (children, parentComponent, doRemove = false, start = 0)
 }
 
 const EMPTY_ARR = []
-
+/**
+ * VNode 子节点比对函数，这里简单逐个比对，Vue 3.0源码中实际采用更优的算法复杂度比对
+ * @param {*} n1 
+ * @param {*} n2 
+ * @param {*} container 
+ * @param {*} anchor 
+ * @param {*} parentComponent 
+ */
 const patchChildren = (n1, n2, container, anchor, parentComponent) => {
   let c1 = n1 && n1.children
   let c2 = n2.children
@@ -582,7 +660,7 @@ const patchChildren = (n1, n2, container, anchor, parentComponent) => {
   }
   return
 }
-
+// 更新元素
 const patchElement = (n1, n2, parentComponent) => {
   const el = (n2.el = n1.el)
   const oldProps = (n1 && n1.props) || EMPTY_OBJ
@@ -592,18 +670,22 @@ const patchElement = (n1, n2, parentComponent) => {
 }
 
 const processElement = (n1, n2, container, anchor, parentComponent) => {
+  // n1 为null表示为挂载元素
   if (n1 === null) {
     mountElement(n2, container, anchor, parentComponent)
   } else {
     patchElement(n1, n2, parentComponent)
   }
 }
-
+/**
+ * 在生成组件实例之后，render函数渲染之前，组件实例进行初始化设置
+ * @param {*} instance 
+ */
 const setupComponent = (instance) => {
   // 设置组件 props
   const { props } = instance.vnode
   initProps(instance, props)
-  // 设置渲染代理功能
+  // 设置模板渲染render函数
   const Component = instance.type
   if (!Component.render && Component.template && compile) {
     Component.render = compile(Component.template)
@@ -612,9 +694,11 @@ const setupComponent = (instance) => {
     throw Error('请检查模板是否正确')
   }
   instance.render = Component.render
+  // render  函数调用时的渲染上下文
   instance.proxy = new Proxy(instance.ctx, {
     get({ _: instance }, key) {
       const { data, setupState, props } = instance
+      // setupState 优先
       if (setupState[key] && hasOwn(setupState, key)) {
         return setupState[key]
       } else if (setupState[key] && hasOwn(setupState, key)) {
@@ -651,10 +735,13 @@ const setupComponent = (instance) => {
     instance.data = reactive(dataValue)
   }
 }
-
+// 挂载组件
 const mountComponent = (initialVNode, container, anchor, parentComponent) => {
+  // 生成组件实例
   const instance = (initialVNode.component = createComponentInstance(initialVNode,  parentComponent))
+  // 组件实例初始化，主要为 render render函数的proxy
   setupComponent(instance, initialVNode)
+  // 渲染组件
   setupRenderEffect(instance, initialVNode, anchor, container)
 }
 
@@ -666,6 +753,7 @@ const updateComponent = (n1, n2) => {
 }
 
 const processComponent = (n1, n2, container, ancher, parentComponent) => {
+  // n1  为null 表示挂载组件
   if (n1 === null) {
     mountComponent(n2, container, ancher, parentComponent)
   } else {
@@ -682,7 +770,7 @@ const patch = (n1, n2, container, ancher, parentComponent) => {
     processElement(n1, n2, container, ancher, parentComponent)
   } 
 }
-
+// 渲染函数
 const render = (vnode, container, parentComponent) => {
   patch(container._vnode || null, vnode, container, null, parentComponent)
   container._vnode = vnode
@@ -691,7 +779,7 @@ const render = (vnode, container, parentComponent) => {
 const camelizeRE = /-(\w)/g
 const camelize = str => str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
 const capitalize = str => str.charAt(0).toUpperCase() + str.slice(1)
-// 用于渲染函数中，解析组件，指令也是在render 函数中渲染
+// 用于渲染函数中，解析组件、同理指令也是在render渲染函数进行处理
 const resolveComponnet = (name) => {
   if (typeof name !== 'string') return
   if (currentRenderingInstance) {
@@ -701,7 +789,7 @@ const resolveComponnet = (name) => {
       || components[capitalize(name)]
   }
 }
-
+// 创建Vnode
 const createVNode = (type, props, children) => {
   // 解析组件
   type = resolveComponnet(type) || type;
@@ -717,7 +805,7 @@ const createVNode = (type, props, children) => {
   }
   return vnode
 }
-
+// 创建Vue App 上下文，主要为全局组件、指令、mixins等
 const createAppContext = () => {
   return {
     mixins: [],
@@ -751,8 +839,10 @@ const createApp = (rootComponent, rootProps = null) => {
         throw Error('App container element is undefined')
       }
       rootContainer.innerHTML = ''
+      // 创建根组件的Vnode
       const vnode = createVNode(rootComponent, rootProps)
       vnode.appContext = context
+      // 渲染App
       render(vnode, rootContainer, null)
       return vnode.component.proxy
     }
