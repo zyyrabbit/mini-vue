@@ -5,8 +5,8 @@
 mini-vue3.0 主要涵盖三个主要功能点：模板编译、数据响应式、组件挂载和更新等，文章链接：
 
 1. [模板编译原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/compile.md)
-2. [数据响应式原理](https://github.com/zyyrabbit/mini-vue3.0/reactive.md)
-3. [组件更新原理](https://github.com/zyyrabbit/mini-vue3.0/component.md)
+2. [数据响应式原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/reactive.md)
+3. [组件更新原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/component.md)
 
 Todo-list
 
