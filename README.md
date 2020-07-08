@@ -16,7 +16,7 @@ Todo-list
 
 ## Demo
 
-在线demo地址: [mini-vue3.0 在线Demo演示](https://github.com/zyyrabbit/mini-vue3.0/demo.html)
+在线demo地址: [mini-vue3.0 在线Demo演示](https://zyyrabbit.github.io/mini-vue3.0/)
 
 本地调试接入：
 
