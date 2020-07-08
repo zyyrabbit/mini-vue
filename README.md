@@ -10,15 +10,13 @@ mini-vue3.0 主要涵盖三个主要功能点：模板编译、数据响应式�
 
 Todo-list
 
-[ ] 指令编译
+- [ ] 指令编译
 
-[ ] 组件异步更新
+- [ ] 组件异步更新
 
 ## Demo
 
 在线demo地址: [mini-vue3.0 在线Demo演示](https://zyyrabbit.github.io/mini-vue3.0/)
-
-本地调试接入：
 
 html 页面代码
 
