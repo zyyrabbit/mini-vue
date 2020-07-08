@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .parent {
+      width: 400px;
+      height: 400px;
+      display: flex;
+      flex-direction: column;
+      margin: 100px auto;
+      align-items: center;
+      justify-content: center;
+      background-color: #ccc;
+    }
+    .before, .after {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .before {
+      background-color: red;
+    }
+    .after {
+      background-color: blue;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="./mini-vue.js" type="text/javascript"></script>
+  <script type="text/javascript">
+    // 以下为测试代码
+    const childComp = {
+      props: {
+        class: String
+      },
+      render() {
+        return {
+          type: 'div',
+          props: {
+            class: this.class,
+          },
+          children: [
+            {
+              type: 'text',
+              props: {
+                value: 'Hello Wrold'
+              }
+            }
+          ]
+        }
+      }
+    }
+
+    const app = createApp({
+      template: `<div class="parent">
+                <div style="text-align: center;margin-bottom: 20px">响应式定时改变元素样式名，从而改变背景色</div>
+                <child-comp :class="propsData.class"></child-comp>
+            </div>`,
+        setup() {
+          const propsData = reactive({
+            class: 'before'
+          })
+
+          setInterval(() => {
+            propsData.class = propsData.class === 'after' ? 'before' :  'after'
+          }, 1000)
+
+          return {
+            propsData
+          }
+        }
+      })
+
+      app.component('ChildComp', childComp)
+      app.mount('#app')
+  </script>
+</body>
+</html>
