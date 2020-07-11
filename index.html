@@ -58,34 +58,31 @@
       }
     }
 
-    /* const app = createApp({
-      template: `<div class="parent">
+    const app = createApp({
+     /*  template: `<div class="parent">
                 <div style="text-align: center;margin-bottom: 20px">响应式定时改变元素样式名，从而改变背景色</div>
                 <child-comp :class="propsData.class"></child-comp>
+            </div>`, */
+            template: `<div class="parent">
+                <div :class="data.class">组件渲染内容</div>
             </div>`,
         setup() {
-          const propsData = reactive({
+          const data = reactive({
             class: 'before'
           })
 
-          setInterval(() => {
+          /* setInterval(() => {
             propsData.class = propsData.class === 'after' ? 'before' :  'after'
-          }, 1000)
+          }, 1000) */
 
           return {
-            propsData
+            data
           }
         }
       })
 
       app.component('ChildComp', childComp)
       app.mount('#app')
- */
-      const tokens = tokenizer(`<div class="app">
-      <div class="content">mini-vue</div>
-      <input :value="model"/>
-    </div>`)
-    console.log(codeGenerator(parser(tokens)))
   </script>
 </body>
 </html>
