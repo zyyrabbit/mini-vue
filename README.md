@@ -2,7 +2,7 @@
 
 > 一个极简版本的vue3.0源码，利用几百行代码从零构建vue3.0，从而快速掌握vue3.0核心原理
 
-mini-vue3.0 主要涵盖三个主要功能点：模板编译、数据响应式、组件挂载和更新等，文章链接：
+mini-vue3.0 主要涵盖三个功能点：模板编译、数据响应式、组件挂载和更新，文章链接：
 
 1. [模板编译原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/compile.md)
 2. [数据响应式原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/reactive.md)
@@ -12,7 +12,7 @@ Todo-list
 
 - [ ] 指令编译
 
-- [ ] 组件异步更新
+- [ ] 组件调度更新
 
 ## Demo
 
@@ -29,7 +29,7 @@ html 页面代码
   <script src="./demo.js" type="text/javascript"></script>
 ```
 
-demo js 代码
+demo.js 代码
 
 ```js
 

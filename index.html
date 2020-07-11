@@ -58,7 +58,7 @@
       }
     }
 
-    const app = createApp({
+    /* const app = createApp({
       template: `<div class="parent">
                 <div style="text-align: center;margin-bottom: 20px">响应式定时改变元素样式名，从而改变背景色</div>
                 <child-comp :class="propsData.class"></child-comp>
@@ -80,6 +80,12 @@
 
       app.component('ChildComp', childComp)
       app.mount('#app')
+ */
+      const tokens = tokenizer(`<div class="app">
+      <div class="content">mini-vue</div>
+      <input :value="model"/>
+    </div>`)
+    console.log(codeGenerator(parser(tokens)))
   </script>
 </body>
 </html>

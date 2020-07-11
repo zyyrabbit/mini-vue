@@ -47,7 +47,7 @@ const tokenizer = (originInput) => {
       const match = input.match(START_TAG_REG)
       if (match) {
         const [str, tagName, attrs] = match
-         // 截取剩余模板字符串
+        // 截取剩余模板字符串
         input = input.slice(str.length)
         const attrsVal = []
         // 判断是否为自闭合标签
@@ -123,8 +123,8 @@ const parser = tokens => {
   }
   const stack = [ast]
   let current = 0, // 当前tokenn索引
-      token = null,
-      len =  tokens.length
+    token = null,
+    len = tokens.length
 
   while (current < len) {
     token = tokens[current++]
@@ -213,7 +213,7 @@ const transformer = (ast) => {
   return ast
 }
 // _c 函数为创建VNode的函数
-let _c = () => {}
+let _c = () => { }
 
 /**
  * 转换后抽象语法树，生成转换后的代码
@@ -230,7 +230,7 @@ const codeGenerator = (node) => {
           {${node.attrs.map(codeGenerator)}},
           [${node.children.map(codeGenerator)}]
         )`
-       );
+      );
     case TYPE.CLOSE: // 自闭合标签
       return (`_c('${node.tag}', {${node.attrs.map(codeGenerator)}})`);
     case TYPE.TEXT:
@@ -251,7 +251,7 @@ const codeGenerator = (node) => {
  */
 const compile = input => {
   let tokens = tokenizer(input)
-  let ast    = parser(tokens)
+  let ast = parser(tokens)
   let newAst = transformer(ast)
   let code = codeGenerator(newAst)
   return new Function(code)()
@@ -281,7 +281,7 @@ const HostElement = {
 /**
  * reactivity 数据响应式相关代码
  */
- 
+
 const isObject = (val) => val !== null && typeof val === 'object'
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const hasOwn = (obj, key) => hasOwnProperty.call(obj, key)
@@ -296,12 +296,12 @@ const trackStack = []
 // 依赖收集
 const effectStack = []
 // 暂停依赖收集
-const pauseTracking =  () => {
+const pauseTracking = () => {
   trackStack.push(shouldTrack)
   shouldTrack = false
 }
 // 重置依赖收集
-const resetTracking =  () => {
+const resetTracking = () => {
   const last = trackStack.pop()
   shouldTrack = last === undefined ? true : last
 }
@@ -333,7 +333,7 @@ const run = (effect, fn) => {
 
 // 依赖收集
 const track = (target, key) => {
-  if (!shouldTrack  || activeEffect === undefined) {
+  if (!shouldTrack || activeEffect === undefined) {
     return
   }
   let depsMap = targetMap.get(target)
@@ -369,7 +369,7 @@ let uuid = 0
 
 // 创建响应式
 const createEffect = (fn) => {
-  const effect = function() {
+  const effect = function () {
     run(effect, fn)
   }
   effect.uuid = uuid++
@@ -397,13 +397,13 @@ const reactive = (obj, shallow = false) => {
   }
   // 注意Proxy 只能代理到一层
   const proxy = new Proxy(obj, {
-    get (target, key, receiver) {
+    get(target, key, receiver) {
       track(target, key)
       const value = Reflect.get(target, key, receiver)
       if (shallow) return value
       return isObject(value) ? reactive(value) : value
     },
-    set (target, key, value, receiver) {
+    set(target, key, value, receiver) {
       const oldValue = Reflect.get(target, key, receiver)
       value = toRaw.get(value) || value
       const observed = Reflect.set(target, key, value, receiver)
@@ -485,7 +485,7 @@ const setupRenderEffect = (instance, initialVNode, anchor, container) => {
       instance.isMounted = true
     } else {
       let { next, vnode } = instance
-       // next存在，表明更新是由父组件更新，触发子组件更新
+      // next存在，表明更新是由父组件更新，触发子组件更新
       if (next) {
         updateComponentPreRender(instance, next)
       } else {
@@ -506,7 +506,7 @@ const setupRenderEffect = (instance, initialVNode, anchor, container) => {
         instance,
       )
       next.el = nextTree.el
-    } 
+    }
   })
 }
 
@@ -523,7 +523,7 @@ const createComponentInstance = (vnode, parent) => {
     parent,
     appContext,
     type: vnode.type,
-    root: null, 
+    root: null,
     subTree: null,
     update: null,
     render: null,
@@ -619,7 +619,7 @@ const initProps = (instance, rawProps) => {
 }
 // 移除Dom元素
 const unmount = (vnode, parentComponent, doRemove = false) => {
-  const {type, props, children} = vnode
+  const { type, props, children } = vnode
   if (doRemove) {
     HostElement.remove(vnode)
   }
@@ -705,7 +705,7 @@ const setupComponent = (instance) => {
         return data[key]
       } else if (props[key] && hasOwn(props, key)) {
         return props[key]
-      } 
+      }
     },
     set({ _: instance }, key, val) {
       const { data, setupState } = instance
@@ -715,7 +715,7 @@ const setupComponent = (instance) => {
         data[key] = val
       } else if (props[key] && hasOwn(props, key)) {
         console.error(`can't modify the props`)
-      } 
+      }
     },
   })
   const { setup, data } = Component
@@ -738,7 +738,7 @@ const setupComponent = (instance) => {
 // 挂载组件
 const mountComponent = (initialVNode, container, anchor, parentComponent) => {
   // 生成组件实例
-  const instance = (initialVNode.component = createComponentInstance(initialVNode,  parentComponent))
+  const instance = (initialVNode.component = createComponentInstance(initialVNode, parentComponent))
   // 组件实例初始化，主要为 render render函数的proxy
   setupComponent(instance, initialVNode)
   // 渲染组件
@@ -768,7 +768,7 @@ const patch = (n1, n2, container, ancher, parentComponent) => {
     processComponent(n1, n2, container, ancher, parentComponent)
   } else {
     processElement(n1, n2, container, ancher, parentComponent)
-  } 
+  }
 }
 // 渲染函数
 const render = (vnode, container, parentComponent) => {
@@ -849,3 +849,4 @@ const createApp = (rootComponent, rootProps = null) => {
   }
   return app
 }
+
