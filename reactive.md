@@ -40,7 +40,7 @@
 
 ### 数据劫持
 
-这里主要是做数据拦截，当渲染模板时候，方位响应式数据时，会做依赖收集。简单实现如下，代码都有详细注释
+这里主要是做数据拦截，当渲染模板时候，访问响应式数据时，会做依赖收集。简单实现如下，代码都有详细注释
 
 ```js
 // 一些辅助工具函数
@@ -107,7 +107,7 @@ const track = (target, key) => {
   if (!dep) {
     depsMap.set(key, (dep = new Set()))
   }
-  // 这里的 activeEffect 其实就是渲染函数，你可以认为就是 render函数
+  // 这里的 activeEffect 其实就是渲染函数，你可以认为就是 render 函数
   if (!dep.has(activeEffect)) {
     dep.add(activeEffect)
   }
@@ -139,7 +139,7 @@ const data = {
 // 设置数据响应式
 const proxyData = reactive(data);
 
-// 此时对象的值如下
+// 此时
 
 toProxy = {
   data: proxyData
@@ -171,11 +171,11 @@ targetMap[data][a].forEach(cb => cb())
 
 ```
 
-以上只是简单说明vue3.0 响应式核心原理，vue 3.0数据源代码实现复杂的多，有兴趣同学可以自行了解。有了上面基础，想必是很加容易了
+以上只是简单说明vue3.0 响应式核心原理，vue 3.0数据源代码实现复杂的多，有兴趣同学可以自行了解。有了上面基础，想必会更加容易了
 
 ### ref、computed实现原理
 
-介绍一个数据响应式原理，这里在简单介绍ref、computed的原理
+介绍一个数据响应式原理，这里再简单介绍一下ref、computed的原理
 
 #### ref实现原理
 
@@ -202,6 +202,7 @@ targetMap[data][a].forEach(cb => cb())
  一个典型实际应用例子，比如我们经常在页面设置各种loading，控制加载。
 
  ```js
+
  // 风格1
  const loading = {
    a: false,
@@ -210,6 +211,7 @@ targetMap[data][a].forEach(cb => cb())
 // 风格2
  let loadingA = false
  let loadingB = false
+
  ```
 
 ##### ref 源码分析
@@ -243,7 +245,7 @@ targetMap[data][a].forEach(cb => cb())
   }
 ```
 
-其实ref实现原理比较简单，在原始数据外面再包一层代理
+其实ref实现原理比较简单，就是在原始数据外面再包一层代理，实现响应式
 
 ##### computed实现原理
 
@@ -253,7 +255,7 @@ targetMap[data][a].forEach(cb => cb())
 function computed(getterOrOptions)
   let getter
   let setter
-  // 参数如果为函数的话，默认为getter 函数拦截
+  // 参数如果为函数的话，默认为getter 函数
   if (isFunction(getterOrOptions)) {
     getter = getterOrOptions
     setter = () => {
@@ -269,7 +271,7 @@ function computed(getterOrOptions)
   let value
   // effect 等价于 vue2.x 中 watcher
   const runner = effect(getter, {
-    lazy: true, // 不会立即执行
+    lazy: true, // 不会立即执行，所以computed 可以起到缓存的作用
     computed: true,
     scheduler: () => {
       dirty = true
@@ -297,15 +299,17 @@ function computed(getterOrOptions)
 1. 举例分析：
 
 ```js
+
 const b = reactive({ a: 1})
 const c = computed(() => b.a)
+
 ```
 
 当改变b的值时候，如 b.a = 2。此时只会触发computed的scheduler，设置dirty =true
 
 只有当访问 c.value 值时，才会触发computed的get代理，执行runner函数，重新计算求值
 
-2. trackChildRun作用是可以实现链式计算属性，父effect会记录computed的runner记录dep，从而实现链式计算属性
+2. trackChildRun作用：实现链式计算属性，父effect会记录computed的runner记录的dep回调函数，从而实现链式计算属性
 
 这里举个例子说明，会更清晰一些
 
@@ -320,13 +324,15 @@ comp.value
 // obj1 响应式依赖收集时，获得计算属性的 runner函数，作为回调
 targetMap[obj].a = [runner]
 
-// 渲染模板时 render
+// 渲染模板
 //<div>{{comp.value}}</div>
 
+// 调用render 函数后
 targetMap[obj].a = [runner, render]
 
 objProxy.a = 2
 
 同时触发计算属性表达式重新求值、模板更新，达到链式调用
+
 ```
 

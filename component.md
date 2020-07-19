@@ -2,13 +2,13 @@
 
 本文简单介绍vue3.0 组件的渲染过程，为了更好说明组件渲染原理，本文会结合一个简单的例子来说明整个过程。
 
-设置挂载点为
+设挂载点为
 
 ```html
 <div id="app"></div>
 ```
 
-根组件定义
+根组件定义为
 
 ```js
 
@@ -17,7 +17,7 @@ const rootComponent = {
                 <div :class="data.class">组件渲染内容</div>
             </div>`,
     setup() {
-      // reactive 作用设置数据响应式
+      // reactive 作用是设置数据响应式
       const data = reactive({
         class: 'demo'
       })
@@ -47,7 +47,7 @@ const appContext = {
 ```js
 
 const rootVnode = {
-  type: rootComponent, // type的值可为字符串 div 或者 组件options对象
+  type: rootComponent, // type的值可为字符串例如：div 或者 组件options对象
   props: {},
   children: {},
   component: null, // 组件实例
@@ -56,8 +56,8 @@ const rootVnode = {
 
 ```
 
-appContext： 全局上下文中的全局组件、指令，会在render函数执行时候，生成相应组件VNode时，用于解析组件、指令
-type: 如果是普通DOM 元素，则为字符串；如果为组件节点则为组件定义对象。在我们例子，则为一个组件定义对象
+appContext： 全局上下文中的全局组件、指令，会在render函数执行时候，生成组件VNode时，用于解析全局组件、指令
+type: 如果是普通DOM元素，则为字符串；如果为组件节点则为组件定义对象。在我们例子，为一个组件定义对象
 
 ## 根据VNode渲染根组件
 
@@ -93,8 +93,9 @@ ctx： 这个ctx 属性，是为了渲染模板的时候，将instance自身作�
 ```js
 
   // 设置模板渲染render函数
-  const Component = instance.type
+  const Component = instance.type // 组件options
   if (!Component.render && Component.template && compile) {
+    // 编译模板为render函数
     Component.render = compile(Component.template)
   }
   if (!Component.render) {
@@ -153,7 +154,7 @@ instance.setupState = {
  // 渲染组件 effect 为响应式相关函数，用于依赖收集，并且设置了组件update的更新函数
  // effect 等价于vue2.x 中的 Watcher
   instance.update = effect(function componentEffect() {
-    // 渲染组件模板，得到组件子树VNode，同时完成依赖收集
+    // 渲染组件模板，得到组件子树VNode，同时完成依赖收集，instance.proxy 其实代理就是组件自生component
     const subTree = (instance.subTree = instance.render.call(instance.proxy,  instance.proxy))
     // 根据组件子树VNode ，渲染组件内容
     mountElement(subTree, container, anchor, instance)
@@ -161,7 +162,7 @@ instance.setupState = {
     instance.isMounted = true
   })
 
-// 根据元素VNode 创建具体 Dom元素
+// 根据VNode 创建具体 Dom元素
 // container 父Dom 元素，在我们例子中为 id="app" 的元素
 const mountElement = (vnode, container, anchor, parentComponent) => {
   const { type, props, children } = vnode
@@ -175,7 +176,7 @@ const mountElement = (vnode, container, anchor, parentComponent) => {
     if (children) {
       mountChildren(vnode.children, el, null, parentComponent)
 	}
-	// 这里的 props 表示是Dom 元素上的props
+	// 这里的 props 表示是Dom元素上的props
     if (props) {
       for (const key in props) {
          el.setAttribute(key, props[key])

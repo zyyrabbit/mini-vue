@@ -1,6 +1,6 @@
 # 模板编译原理
 
-> 写在前面，最近打算学习vue3.0 相关知识，本着学习一个东西，最好方法就是模仿写一个，所以自己动手写了一个简化版vue3.0. 感觉对vue3.0 或者 vue2.x核心原理的理解有很大帮助，所以分享出来。mini-vue3.0主要包括：模板编译、响应式、组件渲染过程等, 仓库地址[mini-vue3.0](https://github.com/zyyrabbit/mini-vue3.0)，欢迎star
+> 写在前面，最近打算学习vue3.0 相关知识，本着学习一个东西，最好方法就是模仿写一个，所以自己动手写了一个简化版vue3.0，自己称作mini-vue3.0 感觉对vue3.0 或者 vue2.x核心原理的理解有很大帮助，所以分享出来。mini-vue3.0主要包括：模板编译、响应式、组件渲染过程等, 仓库地址[mini-vue3.0](https://github.com/zyyrabbit/mini-vue3.0)，欢迎star
 
 先简单介绍一下编译原理的基本知识。众所周知，基本所有的现代编译器，整个编译过程可以分为三个阶段：Parsing(解析)、 Transformation(转换)、Code Generation(代码生成)
 
@@ -45,10 +45,10 @@ interface Token {
 
 // token匹配的正则表达式
 
-// 匹配结束标签 例如 <div class="app">
-const EAD_TAG_REG = /^<\s*\/\s*([a-z-_]+)\s*>/i
 // 匹配开始标签 例如 </div>
 const START_TAG_REG = /^<\s*([a-z-_]+)\s*([^>]*)>/i
+// 匹配结束标签 例如 <div class="app">
+const EAD_TAG_REG = /^<\s*\/\s*([a-z-_]+)\s*>/i
 // 判断是否为自闭和标签 例如  <input :value="model"/>
 const CLOSE_TAG_REG = /\/\s*$/
 // 匹配属性 例如 class="app"
@@ -62,15 +62,15 @@ const TEXT_REG = /^[^<>]+/
 
 tokens解析的步骤如下：
 
-1. 利用正则，去除字符串的换行符，得到如下字符串
+1. 首先利用正则表达式，去除字符串的换行符，得到如下字符串
 
 ```js
  let input = `<div class="app">      <div class="content">mini-vue</div>      <input :value="model"/>    </div>`
 ```
 
-2. 利用正则不断的提取token, 生成tokens数组
+2. 然后利用正则表达式，不断的提取token, 生成tokens数组
 
-  首先匹配到开始标签，并提取标签属性，得到token如下
+  先匹配到开始标签，并提取标签属性，得到token如下
 
    ```js
     {
@@ -83,12 +83,13 @@ tokens解析的步骤如下：
       }
     }
    ```
-  同时得到剩余的未解析的字符串为:
+  同时通过slice方法，截取字符串得到剩余的未解析的字符串:
 
   ```js
    input = `<div class="content">mini-vue</div>      <input :value="model"/>    </div>`
   ```
-  不断从字符串开始处匹配token，同时截取剩余的字符串赋值为input，直到input 长度为空则表示解析完成
+
+  不断从字符串开始处匹配token，同时截取剩余的字符串赋值为input，直到input长度为空则表示解析完成
 
   具体代码实现过程，因为代码有点多，具体见代码仓库[mini-vue3.0](https://github.com/zyyrabbit/mini-vue3.0)，关于编译的部分
 
@@ -238,7 +239,7 @@ const transformer = (ast) => {
 ```js
 
 /**
- * 转换后抽象语法树，生成转换后的代码
+ * 遍历抽象语法树，生成最终的代码
  * @param {AST抽象语法树根节点} node 
  */
 const codeGenerator = (node) => {
@@ -249,7 +250,7 @@ const codeGenerator = (node) => {
       // _c 函数为创建VNode的函数
       return (
         `_c('${node.tag}', 
-          {${node.attrs.map(codeGenerator)}},
+          {${node.attrs.map(codeGenerator)}}, 
           [${node.children.map(codeGenerator)}]
         )`
        );
@@ -279,7 +280,7 @@ return function () { return _c('div',
         ) }`
 ```
 
-将字符串转换为可执行代码，得到最终生成的render函数：
+将代码字符串转换为可执行代码，得到最终生成的render函数：
 
 ```js
 let render = new Function(code)();
