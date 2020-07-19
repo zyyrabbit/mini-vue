@@ -2,6 +2,10 @@
 
 > 一个极简版本的vue3.0源码，利用几百行代码从零构建vue3.0，从而快速掌握vue3.0核心原理
 
+vue 架构图
+
+![vue 架构图](https://raw.githubusercontent.com/zyyrabbit/MarkdownPhotos/master/Res/Vue%E6%9E%B6%E6%9E%84%E5%9B%BE.jpg)
+
 mini-vue3.0 主要涵盖三个功能点：模板编译、数据响应式、组件挂载和更新，文章链接：
 
 1. [模板编译原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/compile.md)

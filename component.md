@@ -2,6 +2,14 @@
 
 本文简单介绍vue3.0 组件的渲染过程，为了更好说明组件渲染原理，本文会结合一个简单的例子来说明整个过程。
 
+简单一点渲染过程图
+
+![component渲染过程图](https://raw.githubusercontent.com/zyyrabbit/MarkdownPhotos/master/Res/compnent%E7%BB%84%E4%BB%B6%E6%B8%B2%E6%9F%93%E8%BF%87%E7%A8%8B.jpg)
+
+复杂一点渲染过程图
+
+![vue3.0组件初始化流程](https://raw.githubusercontent.com/zyyrabbit/MarkdownPhotos/master/Res/vue3.0%E7%BB%84%E4%BB%B6%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B.jpg)
+
 设挂载点为
 
 ```html
