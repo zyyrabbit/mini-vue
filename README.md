@@ -6,17 +6,17 @@ vue 架构图
 
 ![vue 架构图](https://raw.githubusercontent.com/zyyrabbit/MarkdownPhotos/master/Res/Vue%E6%9E%B6%E6%9E%84%E5%9B%BE.jpg)
 
-mini-vue3.0 主要涵盖三个功能点：模板编译、数据响应式、组件挂载和更新，文章链接：
+mini-vue3.0 主要涵盖三个功能点：模板编译、数据响应式、组件挂载和更新等，文章链接：
 
 1. [模板编译原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/compile.md)
 2. [数据响应式原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/reactive.md)
 3. [组件更新原理](https://github.com/zyyrabbit/mini-vue3.0/blob/master/component.md)
+4. 指令编译及执行
+5. 组件调度更新
 
 Todo-list
 
-- [ ] 指令编译
-
-- [ x ] 组件调度更新
+- [ ] vue3.0 组件渲染优化
 
 ## Demo
 

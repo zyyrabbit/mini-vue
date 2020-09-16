@@ -6,9 +6,11 @@ const START_TAG_REG = /^<\s*([a-z-_]+)\s*([^>]*)>/i
 // 判断是否为自闭和标签
 const CLOSE_TAG_REG = /\/\s*$/
 // 匹配属性
-const ATTR_REG = /([\w:]+)\s*(=\s*"([^"]+)")?/ig
+const ATTR_REG = /([\w-:]+)\s*(=\s*"([^"]+)")?/ig
 // 判断是否为动态属性
 const EXPRESS = /^:/
+// 判断是否为指令
+const DIRECTIVE = /^v-/
 // 提取文本节点
 const TEXT_REG = /^[^<>]+/
 
@@ -19,7 +21,8 @@ const TYPE = {
   END: 'end',
   TEXT: 'text',
   FRAGMENT: 'Fragment',
-  EXPRESS: 'express'
+  EXPRESS: 'express',
+  DIRECTIVE: 'directive'
 }
 /**
  *
@@ -65,7 +68,12 @@ const tokenizer = (originInput) => {
             const [str, attrName, _, attrValue] = rst
             // 判断是否为表达式属性
             if (EXPRESS.test(attrName)) {
-              attrsVal.push({ type: TYPE.EXPRESS, name: attrName.slice(1), value: attrValue, })
+              attrsVal.push({ type: TYPE.EXPRESS, name: attrName.slice(1), value: attrValue })
+              continue
+            }
+            // 指令类型
+            if (DIRECTIVE.test(attrName)) {
+              attrsVal.push({ type: TYPE.DIRECTIVE, name: `_${attrName.slice(2)}`, value: attrValue })
               continue
             }
             // 普通属性
@@ -75,7 +83,6 @@ const tokenizer = (originInput) => {
       }
       continue
     }
-
     // 文本内容
     if (TEXT_REG.test(input)) {
       const match = input.match(TEXT_REG)
@@ -166,26 +173,23 @@ const parser = tokens => {
  * @param {*} visitor 
  */
 const traverser = (ast, visitor) => {
-  function traverseArray(array, parent) {
+  const traverseArray = (array, parent) => {
     array.forEach(child => {
       traverseNode(child, parent)
     })
   }
-  function traverseNode(node, parent) {
+  const traverseNode = (node, parent) => {
     let methods = visitor[node.type]
     // 调用对应节点，遍历节点钩子函数
     if (methods && methods.enter) {
       methods.enter(node, parent)
     }
     switch (node.type) {
+      case TYPE.FRAGMENT:
       case TYPE.START:
-        traverseNode(node, parent)
         traverseArray(node.children, node)
         break
       case TYPE.CLOSE:
-        traverseNode(node, parent)
-        break
-      case TYPE.FRAGMENT:
       case TYPE.TEXT:
         break
       default:
@@ -207,13 +211,57 @@ const traverser = (ast, visitor) => {
  */
 const transformer = (ast) => {
   traverser(ast, {
-    [TYPE.START]: {},
+    [TYPE.START]: {
+      enter(node, parent) {
+        if (node.attrs.length >= 0) {
+          const directives = node.attrs.filter(item => item.type === TYPE.DIRECTIVE);
+          node.directives = directives;
+          node.attrs = node.attrs.filter(item => item.type !== TYPE.DIRECTIVE);
+        }
+      }
+    },
     [TYPE.CLOSE]: {}
   })
   return ast
 }
-// _c 函数为创建VNode的函数
-let _c = () => { }
+// _c 函数为创建VNode的函数 helper 函数
+let _c = () => {}
+const _show = {
+  beforeMount(el, { value }) {
+    el._vod = el.style.display === 'none' ? '' : el.style.display
+    el.style.display = value ? el._vod : 'none'
+  },
+  updated(el, { value }) {
+    // 实际还有新旧值比对才会更新
+    el.style.display = value ? el._vod : 'none'
+  },
+}
+// 模板编译函数
+const _wDirective = (vnode, directives) => {
+  if (!currentRenderingInstance) {
+    return vnode
+  }
+  const instance = currentRenderingInstance.proxy
+  vnode.dirs = directives.map(directive => {
+    return {
+      dir: directive.name,
+      instance,
+      value: directive.value
+    }
+  })
+  return vnode
+}
+// 在特定时机触发指令钩子执行相关的逻辑
+const invokeDirectiveHook = (vnode, prevVNode, instance, name) => {
+  const bindings = vnode.dirs
+  for (let i = 0; i < bindings.length; i++) {
+    const binding = bindings[i]
+    const hook = binding.dir[name]
+    if (hook) {
+      hook(vnode.el, binding, vnode)
+    }
+  }
+}
 
 /**
  * 转换后抽象语法树，生成转换后的代码
@@ -225,25 +273,31 @@ const codeGenerator = (node) => {
       return `return function () { return ${codeGenerator(node.children[0])} }`
     case TYPE.START:
       // _c 函数为创建VNode的函数
-      return (
-        `_c('${node.tag}', 
-          {${node.attrs.map(codeGenerator)}},
-          [${node.children.map(codeGenerator)}]
-        )`
-      );
+      const code = (
+          `_c('${node.tag}', 
+            {${node.attrs.map(codeGenerator)}},
+            [${node.children.map(codeGenerator)}]
+          )`
+        );
+      // 处理指令的情况
+      if (node.directives && node.directives.length > 0) {
+        return (`_wDirective(${code}, [${node.directives.map(codeGenerator)}])`)
+      }
+      return code;
     case TYPE.CLOSE: // 自闭合标签
-      return (`_c('${node.tag}', {${node.attrs.map(codeGenerator)}})`);
+      return (`_c('${node.tag}', {${node.attrs.map(codeGenerator)}})`)
     case TYPE.TEXT:
-      return (`_c('${TYPE.TEXT}', {value: '${node.value}'})`);
+      return (`_c('${TYPE.TEXT}', {value: '${node.value}'})`)
     case TYPE.ATTR: // 属性
-      return (`${node.name}: "${node.value}"`);
+      return (`${node.name}: "${node.value}"`)
     case TYPE.EXPRESS: // 表达式
-      return (`${node.name}: this.${node.value}`);
+      return (`${node.name}: this.${node.value}`)
+    case TYPE.DIRECTIVE: // 表达式
+      return (`{ name: ${node.name}, value: this.${node.value}}`)
     default:
-      throw new TypeError(node.type);
+      throw new TypeError(node.type)
   }
 }
-
 
 /**
  * 编译模板，生成render 渲染函数
@@ -281,7 +335,6 @@ const HostElement = {
 /**
  * reactivity 数据响应式相关代码
  */
-
 const isObject = (val) => val !== null && typeof val === 'object'
 const hasOwnProperty = Object.prototype.hasOwnProperty
 const hasOwn = (obj, key) => hasOwnProperty.call(obj, key)
@@ -438,12 +491,34 @@ const shallowReactive = (obj) => {
 // 组件调度 - 目前没处理无线递归处理
 const queue = []
 let flushIndex = 0
+
+const pendingPostFlushCbs = []
+let activePostFlushCbs = null
+let postFlushIndex = 0
+
 let isFlushPending = false
 let isFlushing = false
 const resolvedPromise = Promise.resolve()
+const getId = (job) => job.id == null ? Infinity : job.id
 
-const getId = (job) =>
-  job.id == null ? Infinity : job.id
+const flushPostFlushCbs = () => {
+  if (pendingPostFlushCbs.length) {
+    const deduped = [...new Set(pendingPostFlushCbs)]
+    pendingPostFlushCbs.length = 0
+    // #1947 already has active queue, nested flushPostFlushCbs call
+    if (activePostFlushCbs) {
+      activePostFlushCbs.push(...deduped)
+      return
+    }
+    activePostFlushCbs = deduped
+    activePostFlushCbs.sort((a, b) => getId(a) - getId(b))
+    for (postFlushIndex = 0; postFlushIndex < activePostFlushCbs.length; postFlushIndex++) {
+      activePostFlushCbs[postFlushIndex]()
+    }
+    activePostFlushCbs = null
+    postFlushIndex = 0
+  }
+}
 
 const flushJobs =  () => {
   isFlushPending = false
@@ -458,9 +533,14 @@ const flushJobs =  () => {
   } finally {
     flushIndex = 0
     queue.length = 0
+    flushPostFlushCbs()
     isFlushing = false
+    if (queue.length || pendingPostFlushCbs.length) {
+      flushJobs()
+    }
   }
 }
+
 // 异步更新
 const queueFlush = () => {
   if (!isFlushing && !isFlushPending) {
@@ -468,6 +548,18 @@ const queueFlush = () => {
     resolvedPromise.then(flushJobs)
   }
 }
+
+const queueCb = (cb, activeQueue, pendingQueue, index) => {
+  if (!activeQueue || !activeQueue.includes(cb, index)) {
+    pendingQueue.push(cb)
+  }
+  queueFlush()
+}
+
+const queuePostFlushCb = (cb) => {
+  queueCb(cb, activePostFlushCbs, pendingPostFlushCbs, postFlushIndex)
+}
+
 // 异步调度
 const queueJob = (job) => {
   if (!queue.includes(job, flushIndex)) {
@@ -599,7 +691,7 @@ const hostPatchProp = (el, key, prevValue, nextValue, parentComponent) => {
     el.setAttribute(key, nextValue)
   }
 }
-// 挂载children
+// 挂载children -- 优化 diff 算法
 const mountChildren = (children, container, anchor, parentComponent, start = 0) => {
   for (let i = start; i < children.length; i++) {
     const child = children[i]
@@ -608,7 +700,7 @@ const mountChildren = (children, container, anchor, parentComponent, start = 0) 
 }
 // 挂载元素
 const mountElement = (vnode, container, anchor, parentComponent) => {
-  const { type, props, children } = vnode
+  const { type, props, children, dirs } = vnode
   let el
   // 文本节点特殊处理
   if (type === 'text') {
@@ -623,6 +715,10 @@ const mountElement = (vnode, container, anchor, parentComponent) => {
         hostPatchProp(el, key, null, props[key], vnode.children, parentComponent)
       }
     }
+  }
+  // 指令处理
+  if (dirs) {
+    invokeDirectiveHook(vnode, null, parentComponent, 'beforeMount')
   }
   // 插入DOM
   HostElement.appendChild(container, el, anchor)
@@ -712,10 +808,14 @@ const patchChildren = (n1, n2, container, anchor, parentComponent) => {
 // 更新元素
 const patchElement = (n1, n2, parentComponent) => {
   const el = (n2.el = n1.el)
+  const { dirs } = n2
   const oldProps = (n1 && n1.props) || EMPTY_OBJ
   const newProps = n2.props || EMPTY_OBJ
   patchProps(el, n2, oldProps, newProps, parentComponent)
   patchChildren(n1, n2, el, null, parentComponent)
+  queuePostFlushCb(() => {
+    dirs && invokeDirectiveHook(n2, n1, parentComponent, 'updated')
+  })
 }
 
 const processElement = (n1, n2, container, anchor, parentComponent) => {
