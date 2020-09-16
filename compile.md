@@ -1,7 +1,5 @@
 # 模板编译原理
 
-> 写在前面，最近打算学习vue3.0 相关知识，本着学习一个东西，最好方法就是模仿写一个，所以自己动手写了一个简化版vue3.0，自己称作mini-vue3.0 感觉对vue3.0 或者 vue2.x核心原理的理解有很大帮助，所以分享出来。mini-vue3.0主要包括：模板编译、响应式、组件渲染过程等, 仓库地址[mini-vue3.0](https://github.com/zyyrabbit/mini-vue3.0)，欢迎star
-
 先简单介绍一下编译原理的基本知识。众所周知，基本所有的现代编译器，整个编译过程可以分为三个阶段：Parsing(解析)、 Transformation(转换)、Code Generation(代码生成)
 
 1. 第一阶段：解析字符模板生成tokens，根据tokens生成AST语法树

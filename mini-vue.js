@@ -362,23 +362,30 @@ const trigger = (target, key) => {
   effectsToAdd.forEach(effect => {
     effects.add(effect)
   })
-  effects.forEach(effect => effect())
+  effects.forEach(effect => {
+    if (effect.option.scheduler) {
+      effect.option.scheduler(effect)
+    } else {
+      effect()
+    }
+  })
 }
 
 let uuid = 0
 
 // 创建响应式
-const createEffect = (fn) => {
+const createEffect = (fn, option) => {
   const effect = function () {
     run(effect, fn)
   }
   effect.uuid = uuid++
   effect.deps = []
+  effect.option = option
   return effect
 }
 
 const effect = (fn, option = {}) => {
-  const effect = createEffect(fn)
+  const effect = createEffect(fn, option)
   if (!option.lazy) {
     effect()
   }
@@ -427,6 +434,48 @@ const reactive = (obj, shallow = false) => {
 const shallowReactive = (obj) => {
   return reactive(obj, true)
 }
+
+// 组件调度 - 目前没处理无线递归处理
+const queue = []
+let flushIndex = 0
+let isFlushPending = false
+let isFlushing = false
+const resolvedPromise = Promise.resolve()
+
+const getId = (job) =>
+  job.id == null ? Infinity : job.id
+
+const flushJobs =  () => {
+  isFlushPending = false
+  isFlushing = true
+  // 排序job
+  queue.sort((a, b) => getId(a) - getId(b))
+  try {
+    for (flushIndex = 0; flushIndex < queue.length; flushIndex++) {
+      const job = queue[flushIndex]
+      job && job()
+    }
+  } finally {
+    flushIndex = 0
+    queue.length = 0
+    isFlushing = false
+  }
+}
+// 异步更新
+const queueFlush = () => {
+  if (!isFlushing && !isFlushPending) {
+    isFlushPending = true
+    resolvedPromise.then(flushJobs)
+  }
+}
+// 异步调度
+const queueJob = (job) => {
+  if (!queue.includes(job, flushIndex)) {
+    queue.push(job)
+    queueFlush()
+  }
+}
+
 // 当前渲染组件实例
 let currentRenderingInstance
 /**
@@ -507,7 +556,7 @@ const setupRenderEffect = (instance, initialVNode, anchor, container) => {
       )
       next.el = nextTree.el
     }
-  })
+  }, { scheduler: (effect) => queueJob(effect) } )
 }
 
 const EMPTY_OBJ = {}
