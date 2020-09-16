@@ -62,16 +62,21 @@ const childComp = {
 // 启动App
 const app = createApp({
   template: ` <div class="parent">
+                <div style="text-align: center;margin-bottom: 20px">
+                  <span v-show="propsData.show">响应式定时改变元素样式名，从而改变背景色</span>
+                </div>
                 <child-comp :class="propsData.class"></child-comp>
               </div>`,
   setup() {
     // 响应式
     const propsData = reactive({
-      class: 'before'
+      class: 'before',
+      show: true
     })
     // 定时改变类名
     setInterval(() => {
       propsData.class = propsData.class === 'after' ? 'before' :  'after'
+      propsData.show = !propsData.show
     }, 1000)
 
     return {
