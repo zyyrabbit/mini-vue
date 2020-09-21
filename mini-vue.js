@@ -213,6 +213,7 @@ const transformer = (ast) => {
   traverser(ast, {
     [TYPE.START]: {
       enter(node, parent) {
+        // 这里处理指令编译
         if (node.attrs.length >= 0) {
           const directives = node.attrs.filter(item => item.type === TYPE.DIRECTIVE);
           node.directives = directives;
@@ -226,6 +227,7 @@ const transformer = (ast) => {
 }
 // _c 函数为创建VNode的函数 helper 函数
 let _c = () => {}
+// v-show 指令函数
 const _show = {
   beforeMount(el, { value }) {
     el._vod = el.style.display === 'none' ? '' : el.style.display
@@ -236,12 +238,13 @@ const _show = {
     el.style.display = value ? el._vod : 'none'
   },
 }
-// 模板编译函数
+// 模板指令编译辅助函数函数
 const _wDirective = (vnode, directives) => {
   if (!currentRenderingInstance) {
     return vnode
   }
   const instance = currentRenderingInstance.proxy
+  // 指令编译
   vnode.dirs = directives.map(directive => {
     return {
       dir: directive.name,
@@ -519,7 +522,7 @@ const flushPostFlushCbs = () => {
     postFlushIndex = 0
   }
 }
-
+// 刷新工作调度
 const flushJobs =  () => {
   isFlushPending = false
   isFlushing = true
